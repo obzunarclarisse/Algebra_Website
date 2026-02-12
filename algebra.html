@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Algebra Visual Learning – 100 Problems Mixed Groups</title>
+</head>
+<body style="font-family: Arial; background-color:#f4f6f8; padding:20px;">
+
+<h1>Algebra Practice: Addition & Subtraction – Parentheses Groups</h1>
+<p>Equations contain 2–3 parentheses groups. First block no sign, following groups show + or −. Intermediate like-term answers are displayed next to blocks.</p>
+<hr>
+
+<div id="problemContainer"></div>
+<button onclick="nextProblem()">Next Problem</button>
+
+<p id="result" style="font-weight:bold;"></p>
+<p id="process"></p>
+<p id="progress" style="font-weight:bold;"></p>
+
+<script>
+// Color scheme
+const colors = {x:"blue", y:"red", z:"green", const:"gold", sub:"gray"};
+
+function randInt(min,max){return Math.floor(Math.random()*(max-min+1))+min;}
+
+// Build equation string skipping zero
+function buildEquationString(terms){
+  let eqStr = "";
+  terms.forEach((term,i)=>{
+    if(term.val===0) return;
+    let sign = "";
+    if(i>0){ sign = term.sign==="+"? " + " : " - "; }
+    else { sign = (term.sign==="-" ? "-" : ""); }
+    eqStr += sign + term.val + (term.label==="const"? "" : term.label);
+  });
+  if(eqStr==="") eqStr = "0";
+  return eqStr;
+}
+
+// Wrap group in parentheses
+function buildGroup(terms){
+  return "(" + buildEquationString(terms) + ")";
+}
+
+// Generate a random group (monomial/binomial/polynomial with 1–5 terms)
+function generateGroup(){
+  let numTerms = randInt(1,5);
+  let group = [];
+  const labels = ["x","y","z","const"];
+  for(let i=0;i<numTerms;i++){
+    let label = labels[i % labels.length];
+    let val = randInt(1,9);
+    group.push({val:val, sign:'+', label:label});
+  }
+  return group;
+}
+
+// Generate a single problem with 2–3 groups and mixed operations
+function generateProblem(){
+  let problem = {eq:"", answer:"", steps:[]};
+  let numGroups = randInt(2,3);
+  let groups = [];
+  let operations = [];
+  
+  for(let i=0;i<numGroups;i++){
+    let group = generateGroup();
+    groups.push(group);
+    if(i>0){
+      operations.push(Math.random()<0.5? "+" : "-");
+    }
+  }
+
+  // Build equation string
+  let eqStr = buildGroup(groups[0]);
+  for(let i=1;i<numGroups;i++){
+    eqStr += " " + operations[i-1] + " " + buildGroup(groups[i]);
+  }
+  problem.eq = eqStr + " = ?";
+
+  // Collect like terms for answer
+  let totals = {x:0,y:0,z:0,const:0};
+  totals.x += groups[0].filter(t=>t.label==="x").reduce((a,t)=>a+t.val,0);
+  totals.y += groups[0].filter(t=>t.label==="y").reduce((a,t)=>a+t.val,0);
+  totals.z += groups[0].filter(t=>t.label==="z").reduce((a,t)=>a+t.val,0);
+  totals.const += groups[0].filter(t=>t.label==="const").reduce((a,t)=>a+t.val,0);
+
+  for(let i=1;i<numGroups;i++){
+    let sign = operations[i-1]==="+"?1:-1;
+    groups[i].forEach(t=>{
+      totals[t.label] += t.val * sign;
+    });
+  }
+
+  // Build answer string skipping zeros
+  problem.answer = "";
+  for(const key of ["x","y","z","const"]){
+    if(totals[key]!==0){
+      if(problem.answer!=="") problem.answer += " + ";
+      problem.answer += totals[key]+(key==="const"?"":key);
+    }
+  }
+
+  // Build steps for each like-term
+  ["x","y","z","const"].forEach(label=>{
+    let terms = [];
+    for(let i=0;i<numGroups;i++){
+      let sign = i===0? "+" : operations[i-1];
+      let term = groups[i].find(t=>t.label===label);
+      if(term) terms.push({val:term.val, sign:sign, label:label});
+    }
+    if(terms.length>0) problem.steps.push({label:label, terms:terms});
+  });
+
+  return problem;
+}
+
+// Generate 100 problems
+let problems = [];
+for(let i=0;i<100;i++) problems.push(generateProblem());
+
+// Shuffle problems
+for (let i = problems.length - 1; i > 0; i--) {
+  const j = Math.floor(Math.random() * (i + 1));
+  [problems[i], problems[j]] = [problems[j], problems[i]];
+}
+
+let currentIndex = 0;
+
+function displayProblem(){
+  let currentProblem = problems[currentIndex];
+  document.getElementById("problemContainer").innerHTML = `
+    <h2>Problem ${currentIndex+1}:</h2>
+    <p style="font-size:22px;"><b>${currentProblem.eq}</b></p>
+    <input type="text" id="answerInput" style="font-size:16px;">
+    <br><br>
+    <button onclick="checkAnswer()">Check Answer</button>
+    <button onclick="showProcess()">Show Process</button>
+  `;
+  document.getElementById("result").innerHTML = "";
+  document.getElementById("process").innerHTML = "";
+  document.getElementById("progress").innerHTML = `Progress: ${currentIndex+1}/100`;
+}
+
+displayProblem();
+
+function nextProblem(){
+  if(currentIndex<problems.length-1) currentIndex++;
+  displayProblem();
+}
+
+function checkAnswer(){
+  const input = document.getElementById("answerInput").value.replace(/\s+/g,'');
+  let result = document.getElementById("result");
+  let currentProblem = problems[currentIndex];
+  if(input===currentProblem.answer){
+    result.innerHTML = "✅ Correct!";
+    result.style.color="green";
+  } else {
+    result.innerHTML = "❌ Try again!";
+    result.style.color="red";
+  }
+}
+
+function showProcess(){
+  let currentProblem = problems[currentIndex];
+  let html = "<h3>Step-by-step visual blocks:</h3>";
+  currentProblem.steps.forEach(step=>{
+    html += `<p><strong>${step.label} terms:</strong></p>`;
+    let total = 0;
+    step.terms.forEach((term,index)=>{
+      if(term.val===0) return;
+      let color = (term.sign==='-')? colors.sub : (step.label==='const'? colors.const : colors[step.label]);
+      let sign = index===0? '' : term.sign;
+      html += `<span style="color:${color}; font-size:22px;">${sign}${'■'.repeat(term.val)}</span> `;
+      total += (term.sign==='+'?term.val:-term.val);
+    });
+    if(total!==0){
+      let colorTotal = (step.label==='const'? colors.const : colors[step.label]);
+      html += ` → <span style="color:${colorTotal}; font-size:22px;"><b>${total}${step.label==='const'?'':step.label}</b></span>`;
+    }
+  });
+
+  if(currentProblem.answer==="") html += `<p><strong>Final Answer:</strong> 0</p>`;
+  else html += `<p><strong>Final Answer:</strong> <span style="color:green; font-size:20px;"><b>${currentProblem.answer}</b></span></p>`;
+  document.getElementById("process").innerHTML = html;
+}
+</script>
+
+</body>
+</html>
